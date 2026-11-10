@@ -193,6 +193,26 @@ impl Context {
         self.0.read()
     }
 
+    /// Reads at most 2048 bytes in one call, for a bounded server request loop.
+    ///
+    /// Drain [`Self::pending_request`] between calls. The internal byte buffer is
+    /// limited to the maximum EI message size (1 MiB); client requests cannot
+    /// carry file descriptors. This does not bound the work or queues of a
+    /// request converter. The server must enforce those limits separately.
+    ///
+    /// Returns zero when no bytes are available. Unlike [`Self::read`], a
+    /// successful call does not imply that the socket was drained to WouldBlock.
+    /// Use level-triggered readiness or continue reading after processing requests.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnexpectedEof` for peer closure, `InvalidData` when the buffer is
+    /// full or descriptors are received, or any underlying I/O error. An error
+    /// terminates the protocol connection; do not continue parsing afterwards.
+    pub fn read_chunk(&self) -> io::Result<usize> {
+        self.0.read_chunk()
+    }
+
     /// Returns a request that is readily available.
     // XXX iterator
     pub fn pending_request(&self) -> Option<PendingRequestResult<Request>> {
